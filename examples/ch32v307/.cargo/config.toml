@@ -2,12 +2,15 @@
 target = "riscv32imac-unknown-none-elf"
 
 [target.riscv32imac-unknown-none-elf]
-runner = "wlink flash --enable-sdi-print --watch-serial"
+# runner = "wlink flash --enable-sdi-print --watch-serial"
 # runner = "wlink -v flash --no-erase --dry-run"
-# runner = "probe-rs run --chip CH32V307"
+runner = "probe-rs run --chip CH32V307 --probe 1a86:8010 --connect-under-reset"
 # runner = "wlink -v flash"
 
 # Use the following or build.rs
 #rustflags = [
 #  "-C", "link-arg=-Tlink.x",
 #]
+# .cargo/config.toml
+[env]
+DEFMT_LOG = "trace"

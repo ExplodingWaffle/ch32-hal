@@ -1,0 +1,1 @@
+serial-monitor | defmt-print -e %1

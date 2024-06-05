@@ -322,6 +322,8 @@ fn main() {
         (("spi", "I2S_WS"), quote!(crate::spi::WsPin)), */
         (("i2c", "SDA"), quote!(crate::i2c::SdaPin)),
         (("i2c", "SCL"), quote!(crate::i2c::SclPin)),
+        (("usbhd", "DM"), quote!(crate::usbhd::DmPin)),
+        (("usbhd", "DP"), quote!(crate::usbhd::DpPin)),
     ]
     .into();
 

@@ -1,17 +1,17 @@
 //! The debug module.
 //!
-//! See-also: https://github.com/openwch/ch32v003/blob/main/EVT/EXAM/SDI_Printf/SDI_Printf/Debug/debug.c
+//! See-also: <https://github.com/openwch/ch32v003/blob/main/EVT/EXAM/SDI_Printf/SDI_Printf/Debug/debug.c>
 
 use qingke::riscv;
 
 #[cfg(any(qingke_v3, qingke_v4))]
-mod regs {
+pub(crate) mod regs {
     pub const DEBUG_DATA0_ADDRESS: *mut u32 = 0xE000_0380 as *mut u32;
     pub const DEBUG_DATA1_ADDRESS: *mut u32 = 0xE000_0384 as *mut u32;
 }
 
 #[cfg(qingke_v2)]
-mod regs {
+pub(crate) mod regs {
     pub const DEBUG_DATA0_ADDRESS: *mut u32 = 0xE00000F4 as *mut u32;
     pub const DEBUG_DATA1_ADDRESS: *mut u32 = 0xE00000F8 as *mut u32;
 }
@@ -28,7 +28,7 @@ impl SDIPrint {
     }
 
     #[inline]
-    fn is_busy() -> bool {
+    pub(crate) fn is_busy() -> bool {
         unsafe { core::ptr::read_volatile(regs::DEBUG_DATA0_ADDRESS) != 0 }
     }
 }

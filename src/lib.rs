@@ -22,9 +22,9 @@ mod interrupt_ext;
 
 pub use crate::_generated::{peripherals, Peripherals};
 
-pub mod dma;
 #[cfg(systick_rv2)]
 pub mod delay;
+pub mod dma;
 
 pub mod adc;
 pub mod exti;
@@ -37,9 +37,14 @@ pub mod spi;
 #[cfg(rng)]
 pub mod rng;
 pub mod usart;
+#[cfg(usbhd)]
+pub mod usbhd;
 
 #[cfg(feature = "embassy")]
 pub mod embassy;
+
+#[cfg(feature = "defmt_sdi")]
+pub mod defmt_sdi;
 
 // This must go last, so that it sees all the impl_foo! macros defined earlier.
 pub(crate) mod _generated {

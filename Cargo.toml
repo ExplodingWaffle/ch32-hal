@@ -13,10 +13,10 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-# ch32-metapac = { version = "0.0.5", features = [
-#     "memory-x",
-#     "rt",
-# ], git = "https://github.com/ch32-rs/ch32-metapac.git" }
+#ch32-metapac = { version = "0.0.5", features = [
+#    "memory-x",
+#    "rt",
+#], git = "https://github.com/ch32-rs/ch32-metapac.git" }
 ch32-metapac = { version = "0.0.5", features = [
     "memory-x",
     "rt",
@@ -43,8 +43,10 @@ embassy-time-driver = { version = "0.1.0", features = [
 embassy-time = { version = "0.3.0", features = [
     "tick-hz-1_000_000",
 ], optional = true }
+embassy-usb-driver = {version = "0.1.0", git = "https://github.com/embassy-rs/embassy" }
 nb = "1.1.0"
 embedded-hal-nb = "1.0.0"
+futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
 
 rand_core = "0.6.3"
 
@@ -68,6 +70,7 @@ embassy = [
     "dep:embassy-time",
 ]
 defmt = ["dep:defmt"]
+defmt_sdi = ["defmt"]
 
 # Chip-selection features
 ch32v003a4m6 = ["ch32-metapac/ch32v003a4m6"]
