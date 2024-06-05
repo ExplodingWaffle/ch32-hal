@@ -6,21 +6,28 @@ edition = "2021"
 [dependencies]
 ch32-hal = { path = "../../", features = [
     "ch32v203g6u6",
-    "defmt",
     "embassy",
+    "rt",
+    "time-driver-tim2",
 ], default-features = false }
+#ch32-metapac = { features = [
+#    "memory-x",
+#    "rt",
+#], path = "../../../ch32-data/build/ch32-metapac" }
 embassy-executor = { version = "0.5.0", features = [
     "nightly",
     "integrated-timers",
     "arch-riscv32",
     "executor-thread",
 ] }
-embassy-time = { version = "0.3.0", features = ["tick-hz-1_000_000"] }
+embassy-time = { version = "0.3.0" }
+embassy-usb = { version = "0.1.0" }
+embassy-futures = { version = "0.1.0" }
 
-qingke-rt = { version = "0.1.10" }
-qingke = { version = "0.1.10" }
-# qingke-rt = { version = "0.1.10", path = "../../../qingke/qingke-rt" }
-# qingke = { version = "0.1.10", path = "../../../qingke" }
+qingke-rt = "0.2.1"
+qingke = "0.2.0"
+#qingke-rt = { version = "0.2.0", path = "../../../qingke/qingke-rt" }
+# qingke = { version = "0.2.0", path = "../../../qingke" }
 
 panic-halt = "0.2.0"
 

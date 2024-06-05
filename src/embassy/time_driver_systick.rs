@@ -1,5 +1,6 @@
 //! SysTick-based time driver.
 
+use core::arch::asm;
 use core::cell::Cell;
 use core::sync::atomic::{AtomicU32, AtomicU8, Ordering};
 use core::{mem, ptr};
@@ -10,8 +11,9 @@ use pac::systick::vals;
 use qingke::interrupt::Priority;
 #[cfg(feature = "highcode")]
 use qingke_rt::highcode;
+use qingke_rt::interrupt;
 
-use crate::pac;
+use crate::{pac, println};
 
 pub const ALARM_COUNT: usize = 1;
 
@@ -54,22 +56,23 @@ impl SystickDriver {
         let rb = &crate::pac::SYSTICK;
         let hclk = crate::rcc::clocks().hclk.0 as u64;
 
-        let cnt_per_second = hclk; // not HCLK/8
+        let cnt_per_second = hclk / 8; // HCLK/8
         let cnt_per_tick = cnt_per_second / embassy_time_driver::TICK_HZ;
 
         self.period.store(cnt_per_tick as u32, Ordering::Relaxed);
 
         // UNDOCUMENTED:  Avoid initial interrupt
         rb.cmp().write(|w| *w = u64::MAX - 1);
+        rb.cmp().write_value(0);
         critical_section::with(|_| {
             rb.sr().write(|w| w.set_cntif(false)); // clear
 
             // Configration: Upcount, No reload, HCLK as clock source
             rb.ctlr().modify(|w| {
-                w.set_init(true);
+                //  w.set_init(true);
                 w.set_mode(vals::Mode::UPCOUNT);
                 w.set_stre(false);
-                w.set_stclk(vals::Stclk::HCLK);
+                w.set_stclk(vals::Stclk::HCLK_DIV8);
                 w.set_ste(true);
             });
         })
@@ -78,12 +81,21 @@ impl SystickDriver {
     #[inline(always)]
     fn on_interrupt(&self) {
         let rb = &crate::pac::SYSTICK;
-        rb.ctlr().modify(|w| w.set_stie(false)); // disable interrupt
         rb.sr().write(|w| w.set_cntif(false)); // clear IF
 
-        critical_section::with(|cs| {
+        let period = self.period.load(Ordering::Relaxed) as u64;
+
+        let next_timestamp = critical_section::with(|cs| {
+            let next = self.alarms.borrow(cs)[0].timestamp.get();
+            if next > self.now() + 1 {
+                return next;
+            }
             self.trigger_alarm(cs);
+            return u64::MAX;
         });
+
+        let new_cmp = u64::min(next_timestamp * period, self.raw_cnt().wrapping_add(period));
+        rb.cmp().write_value(new_cmp + 1);
     }
 
     fn trigger_alarm(&self, cs: CriticalSection) {
@@ -103,6 +115,12 @@ impl SystickDriver {
         // safety: we're allowed to assume the AlarmState is created by us, and
         // we never create one that's out of bounds.
         unsafe { self.alarms.borrow(cs).get_unchecked(alarm.id() as usize) }
+    }
+
+    #[inline]
+    fn raw_cnt(&self) -> u64 {
+        let rb = crate::pac::SYSTICK;
+        rb.cnt().read()
     }
 }
 
@@ -143,21 +161,20 @@ impl Driver for SystickDriver {
             let alarm = self.get_alarm(cs, alarm);
             alarm.timestamp.set(timestamp);
 
-            let t = self.now();
+            let period = self.period.load(Ordering::Relaxed) as u64;
+
             // See-also: https://github.com/ch32-rs/ch32-hal/issues/4
-            if timestamp <= t + 1 {
+            let t = self.raw_cnt();
+            let timestamp = timestamp * period;
+            if timestamp <= t {
                 // If alarm timestamp has passed the alarm will not fire.
                 // Disarm the alarm and return `false` to indicate that.
-                rb.ctlr().modify(|w| w.set_stie(false));
 
                 alarm.timestamp.set(u64::MAX);
 
                 return false;
             }
 
-            let period = self.period.load(Ordering::Relaxed) as u64;
-            let safe_timestamp = timestamp.saturating_add(1) * period;
-            rb.cmp().write_value(safe_timestamp);
             rb.ctlr().modify(|w| w.set_stie(true));
 
             true
@@ -165,9 +182,8 @@ impl Driver for SystickDriver {
     }
 }
 
-#[no_mangle]
-#[cfg_attr(feature = "highcode", highcode)]
-extern "C" fn SysTick() {
+#[interrupt(core)]
+fn SysTick() {
     DRIVER.on_interrupt();
 }
 
@@ -177,7 +193,7 @@ pub(crate) fn init() {
 
     // enable interrupt
     unsafe {
-        qingke::pfic::set_priority(CoreInterrupt::SysTick as u8 as u8, Priority::P15 as _);
+        qingke::pfic::set_priority(CoreInterrupt::SysTick as u8, Priority::P15 as u8);
         qingke::pfic::enable_interrupt(CoreInterrupt::SysTick as u8);
     }
 }

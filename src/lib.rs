@@ -1,18 +1,43 @@
 #![no_std]
-#![allow(static_mut_refs)]
+#![allow(static_mut_refs, unexpected_cfgs)]
+#![feature(naked_functions)]
 
 pub use ch32_metapac as pac;
 
 // This must go FIRST so that all the other modules see its macros.
 include!(concat!(env!("OUT_DIR"), "/_macros.rs"));
 
+pub(crate) mod internal;
+
+mod macros;
 pub mod time;
-mod traits;
+/// Operating modes for peripherals.
+pub mod mode {
+    trait SealedMode {}
+
+    /// Operating mode for a peripheral.
+    #[allow(private_bounds)]
+    pub trait Mode: SealedMode {}
+
+    macro_rules! impl_mode {
+        ($name:ident) => {
+            impl SealedMode for $name {}
+            impl Mode for $name {}
+        };
+    }
+
+    /// Blocking mode.
+    pub struct Blocking;
+    /// Async mode.
+    pub struct Async;
+
+    impl_mode!(Blocking);
+    impl_mode!(Async);
+}
 
 pub mod rcc;
 
 pub mod debug;
-//pub mod delay;
 pub mod prelude;
 
 mod peripheral;
@@ -22,23 +47,36 @@ mod interrupt_ext;
 
 pub use crate::_generated::{peripherals, Peripherals};
 
-#[cfg(systick_rv2)]
+#[cfg(any(systick_rv2, systick_rv3))]
 pub mod delay;
 pub mod dma;
 
+#[cfg(adc)]
 pub mod adc;
+#[cfg(peri_dac1)]
+pub mod dac;
 pub mod exti;
 pub mod gpio;
 #[cfg(i2c)]
 pub mod i2c;
-pub mod signature;
-pub mod spi;
-//pub mod timer;
 #[cfg(rng)]
 pub mod rng;
+#[cfg(sdio_v3)]
+pub mod sdio;
+pub mod signature;
+#[cfg(spi)]
+pub mod spi;
+#[cfg(any(timer_x0, timer_v3))]
+pub mod timer;
 pub mod usart;
-#[cfg(usbhd)]
-pub mod usbhd;
+
+#[cfg(usb)]
+pub mod usb;
+#[cfg(usbd)]
+pub mod usbd;
+
+#[cfg(usbpd)]
+pub mod usbpd;
 
 #[cfg(feature = "embassy")]
 pub mod embassy;
@@ -59,24 +97,31 @@ pub(crate) mod _generated {
 mod patches;
 pub use crate::_generated::interrupt;
 
-#[derive(Default)]
 pub struct Config {
     pub rcc: rcc::Config,
+    pub dma_interrupt_priority: interrupt::Priority,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            rcc: Default::default(),
+            dma_interrupt_priority: interrupt::Priority::P0,
+        }
+    }
 }
 
 pub fn init(config: Config) -> Peripherals {
     unsafe {
         rcc::init(config.rcc);
 
-        #[cfg(systick_rv2)]
+        #[cfg(any(systick_rv2, systick_rv3))]
         delay::Delay::init();
     }
 
     ::critical_section::with(|cs| unsafe {
         gpio::init(cs);
-    });
-
-    ::critical_section::with(|cs| unsafe {
+        dma::init(cs, config.dma_interrupt_priority);
         exti::init(cs);
     });
 

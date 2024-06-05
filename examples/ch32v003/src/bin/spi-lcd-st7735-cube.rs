@@ -5,14 +5,13 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
-use core::fmt::Write;
 
 use ch32_hal as hal;
 use embedded_graphics::pixelcolor::raw::ToBytes;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{Line, PrimitiveStyle};
-use hal::dma::NoDma;
+
 use hal::gpio::{Level, Output, Pin};
 use hal::prelude::*;
 use hal::spi::Spi;
@@ -62,7 +61,7 @@ pub enum Instruction {
 }
 
 pub struct ST7735<const WIDTH: u16, const HEIGHT: u16, const OFFSETX: u16, const OFFSETY: u16> {
-    spi: Spi<'static, peripherals::SPI1, NoDma, NoDma>,
+    spi: Spi<'static, peripherals::SPI1, hal::mode::Blocking>,
     dc: Output<'static>,
     // _marker: core::marker::PhantomData<(OFFSETX, OFFSETY)>,
 }
@@ -70,7 +69,7 @@ pub struct ST7735<const WIDTH: u16, const HEIGHT: u16, const OFFSETX: u16, const
 impl<const WIDTH: u16, const HEIGHT: u16, const OFFSETX: u16, const OFFSETY: u16>
     ST7735<WIDTH, HEIGHT, OFFSETX, OFFSETY>
 {
-    pub fn new(spi: Spi<'static, peripherals::SPI1, NoDma, NoDma>, dc: Output<'static>) -> Self {
+    pub fn new(spi: Spi<'static, peripherals::SPI1, hal::mode::Blocking>, dc: Output<'static>) -> Self {
         Self {
             spi,
             dc,
@@ -265,7 +264,7 @@ fn main() -> ! {
     spi_config.frequency = Hertz::mhz(1);
 
     // Remap 0
-    let spi = Spi::new_txonly::<0>(p.SPI1, sck, sda, NoDma, NoDma, spi_config);
+    let spi = Spi::new_blocking_txonly::<0>(p.SPI1, sck, sda, spi_config);
 
     rst.set_low();
     //    Timer::after_millis(120).await;

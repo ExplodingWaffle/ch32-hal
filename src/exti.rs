@@ -4,6 +4,7 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 
 use embassy_sync::waitqueue::AtomicWaker;
+use qingke_rt::interrupt;
 
 use crate::gpio::{AnyPin, Input, Level, Pin as GpioPin, Pull};
 use crate::{impl_peripheral, into_ref, peripherals, Peripheral};
@@ -132,7 +133,8 @@ impl<'a> ExtiInputFuture<'a> {
                 // stride: 2, len: 15, 8 lines
                 afio.exticr().modify(|w| w.set_exti(pin, port));
             }
-            #[cfg(afio_v3)]
+            // V1, V2, V3, L1
+            #[cfg(any(afio_v3, afio_l1))]
             {
                 // AFIO_EXTICRx
                 // stride: 4, len: 4, 16 lines
@@ -142,6 +144,11 @@ impl<'a> ExtiInputFuture<'a> {
             {
                 // stride: 2, len: 15, 24 lines
                 afio.exticr(pin / 16).modify(|w| w.set_exti(pin % 16, port));
+            }
+            #[cfg(afio_ch641)]
+            {
+                // single register
+                afio.exticr().modify(|w| w.set_exti(pin, port != 0));
             }
 
             // See-also: 7.4.3
@@ -185,11 +192,10 @@ impl<'a> Future for ExtiInputFuture<'a> {
     }
 }
 
-pub(crate) mod sealed {
-    pub trait Channel {}
-}
+trait SealedChannel {}
 
-pub trait Channel: sealed::Channel + Sized {
+#[allow(private_bounds)]
+pub trait Channel: SealedChannel + Sized {
     fn number(&self) -> u8;
     fn degrade(self) -> AnyChannel {
         AnyChannel {
@@ -202,7 +208,7 @@ pub struct AnyChannel {
     number: u8,
 }
 impl_peripheral!(AnyChannel);
-impl sealed::Channel for AnyChannel {}
+impl SealedChannel for AnyChannel {}
 impl Channel for AnyChannel {
     fn number(&self) -> u8 {
         self.number
@@ -211,7 +217,7 @@ impl Channel for AnyChannel {
 
 macro_rules! impl_exti {
     ($type:ident, $number:expr) => {
-        impl sealed::Channel for peripherals::$type {}
+        impl SealedChannel for peripherals::$type {}
         impl Channel for peripherals::$type {
             fn number(&self) -> u8 {
                 $number
@@ -279,16 +285,16 @@ EXTI25_16
 pub(crate) unsafe fn init(_cs: critical_section::CriticalSection) {
     use crate::pac::Interrupt;
 
-    #[no_mangle]
-    unsafe extern "C" fn EXTI7_0() {
+    #[interrupt]
+    unsafe fn EXTI7_0() {
         on_irq();
     }
-    #[no_mangle]
-    unsafe extern "C" fn EXTI15_8() {
+    #[interrupt]
+    unsafe fn EXTI15_8() {
         on_irq();
     }
-    #[no_mangle]
-    unsafe extern "C" fn EXTI25_16() {
+    #[interrupt]
+    unsafe fn EXTI25_16() {
         on_irq();
     }
 
@@ -297,36 +303,38 @@ pub(crate) unsafe fn init(_cs: critical_section::CriticalSection) {
     qingke::pfic::enable_interrupt(Interrupt::EXTI25_16 as u8);
 }
 
-#[cfg(gpio_v3)]
+#[cfg(all(gpio_v3, not(ch641)))]
 pub(crate) unsafe fn init(_cs: critical_section::CriticalSection) {
+    use qingke_rt::interrupt;
+
     use crate::pac::Interrupt;
 
-    #[no_mangle]
-    unsafe extern "C" fn EXTI0() {
+    #[interrupt]
+    unsafe fn EXTI0() {
         on_irq();
     }
-    #[no_mangle]
-    unsafe extern "C" fn EXTI1() {
+    #[interrupt]
+    unsafe fn EXTI1() {
         on_irq();
     }
-    #[no_mangle]
-    unsafe extern "C" fn EXTI2() {
+    #[interrupt]
+    unsafe fn EXTI2() {
         on_irq();
     }
-    #[no_mangle]
-    unsafe extern "C" fn EXTI3() {
+    #[interrupt]
+    unsafe fn EXTI3() {
         on_irq();
     }
-    #[no_mangle]
-    unsafe extern "C" fn EXTI4() {
+    #[interrupt]
+    unsafe fn EXTI4() {
         on_irq();
     }
-    #[no_mangle]
-    unsafe extern "C" fn EXTI9_5() {
+    #[interrupt]
+    unsafe fn EXTI9_5() {
         on_irq();
     }
-    #[no_mangle]
-    unsafe extern "C" fn EXTI15_10() {
+    #[interrupt]
+    unsafe fn EXTI15_10() {
         on_irq();
     }
 
@@ -343,10 +351,28 @@ pub(crate) unsafe fn init(_cs: critical_section::CriticalSection) {
 pub(crate) unsafe fn init(_cs: critical_section::CriticalSection) {
     use crate::pac::Interrupt;
 
-    #[no_mangle]
-    unsafe extern "C" fn EXTI7_0() {
+    #[interrupt]
+    unsafe fn EXTI7_0() {
         on_irq();
     }
 
     qingke::pfic::enable_interrupt(Interrupt::EXTI7_0 as u8);
+}
+
+#[cfg(all(gpio_v3, ch641))]
+pub(crate) unsafe fn init(_cs: critical_section::CriticalSection) {
+    use crate::pac::Interrupt;
+
+    #[interrupt]
+    unsafe fn EXTI7_0() {
+        on_irq();
+    }
+
+    #[interrupt]
+    unsafe fn EXTI15_8() {
+        on_irq();
+    }
+
+    qingke::pfic::enable_interrupt(Interrupt::EXTI7_0 as u8);
+    qingke::pfic::enable_interrupt(Interrupt::EXTI15_8 as u8);
 }

@@ -26,7 +26,6 @@ async fn main(spawner: Spawner) -> ! {
     hal::debug::SDIPrint::enable();
     let mut config = hal::Config::default();
     {
-        use hal::rcc::v3::{Hse, HseMode, Pll, PllMul, PllPreDiv, PllSource, Sysclk};
         use hal::rcc::*;
 
         config.rcc = Config {
@@ -37,8 +36,9 @@ async fn main(spawner: Spawner) -> ! {
             pll_src: PllSource::HSE,
             pll: Some(Pll {
                 prediv: PllPreDiv::DIV1,
-                mul: PllMul::MUL12, // 12 * 12 = max 144MHz
-                                    // use MUL16 to overclock to 192MHz
+                // 12 * 12 = max 144MHz
+                // use MUL16 to overclock to 192MHz
+                mul: PllMul::MUL12,
             }),
             sys: Sysclk::PLL,
             ..Default::default()

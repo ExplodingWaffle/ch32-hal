@@ -4,9 +4,9 @@ use crate::pac::rcc::vals::{Hpre as AHBPrescaler, Pllsrc as PllSource, Ppre as A
 use crate::pac::{AFIO, FLASH, RCC};
 use crate::time::Hertz;
 
-const HSI_FREQUENCY: Hertz = Hertz(24_000_000);
+pub const HSI_FREQUENCY: Hertz = Hertz(24_000_000);
 
-const LSI_FREQUENCY: Hertz = Hertz(128_000);
+pub const LSI_FREQUENCY: Hertz = Hertz(128_000);
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum HseMode {
@@ -126,6 +126,10 @@ pub(crate) unsafe fn init(config: Config) {
         _ => unreachable!(),
     };
 
+    if sysclk >= 24_000_000 {
+        FLASH.actlr().modify(|w| w.set_latency(0b01)); // 1 等待（24MHz<HCLK≤48MHz）
+    }
+
     RCC.cfgr0().modify(|w| {
         w.set_hpre(config.ahb_pre);
         w.set_ppre2(config.apb2_pre); // FIXME: this is undocumented, only for ADC2?
@@ -155,6 +159,9 @@ pub(crate) unsafe fn init(config: Config) {
     super::CLOCKS.hclk = Hertz(hclk);
     super::CLOCKS.pclk1 = Hertz(hclk);
     super::CLOCKS.pclk2 = pclk2;
+
+    super::CLOCKS.pclk1_tim = Hertz(sysclk);
+    super::CLOCKS.pclk2_tim = Hertz(sysclk);
 }
 
 impl ops::Div<APBPrescaler> for Hertz {

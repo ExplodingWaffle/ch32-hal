@@ -2,14 +2,13 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use core::fmt::Write as _;
-
 use ch32_hal as hal;
 use embassy_executor::Spawner;
 use embassy_time::Timer;
-use hal::dma::NoDma;
+
 use hal::gpio::{Level, Output};
 use hal::i2c::I2c;
+use hal::mode::Blocking;
 use hal::println;
 use hal::time::Hertz;
 
@@ -77,7 +76,6 @@ async fn main(spawner: Spawner) -> ! {
     let _ = spawner;
     let mut config = hal::Config::default();
     {
-        use hal::rcc::v3::{AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPreDiv, PllSource, Sysclk};
         use hal::rcc::*;
 
         config.rcc = Config {
@@ -117,7 +115,7 @@ async fn main(spawner: Spawner) -> ! {
     let mut i2c_config = hal::i2c::Config::default();
     //  i2c_config.scl_pullup = true;
     //i2c_config.sda_pullup = true;
-    let mut i2c = I2c::new(p.I2C2, scl, sda, NoDma, NoDma, Hertz::hz(400_000), Default::default());
+    let mut i2c = I2c::new_blocking(p.I2C2, scl, sda, Hertz::hz(400_000), Default::default());
 
     let addr = 0x53;
 

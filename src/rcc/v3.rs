@@ -210,6 +210,10 @@ pub(crate) unsafe fn init(config: Config) {
 
             // Usb clock must be 48MHz
             let usb_pre = calc_usbpre(vco_freq);
+            if let Some(usb_pre) = usb_pre {
+                RCC.cfgr0().modify(|w| w.set_usbpre(usb_pre));
+            }
+            // TODO: handle USBHS clk
 
             RCC.cfgr0().modify(|w| w.set_pllmul(pll.mul));
 
@@ -278,6 +282,7 @@ pub(crate) unsafe fn init(config: Config) {
             // Enable PLL
             RCC.ctlr().modify(|w| w.set_pllon(true));
             while !RCC.ctlr().read().pllrdy() {}
+
             Some(vco_freq)
         } else {
             None
@@ -314,6 +319,9 @@ pub(crate) unsafe fn init(config: Config) {
     super::CLOCKS.hclk = hclk;
     super::CLOCKS.pclk1 = pclk1;
     super::CLOCKS.pclk2 = pclk2;
+
+    super::CLOCKS.pclk1_tim = pclk1_tim;
+    super::CLOCKS.pclk2_tim = pclk2_tim;
 }
 
 fn calc_pclk<D>(hclk: Hertz, ppre: D) -> (Hertz, Hertz)

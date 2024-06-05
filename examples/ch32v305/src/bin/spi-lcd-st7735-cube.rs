@@ -16,7 +16,7 @@ use embedded_graphics::pixelcolor::{BinaryColor, Rgb565};
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{Line, PrimitiveStyle};
 use embedded_hal::delay::DelayNs;
-use hal::dma::NoDma;
+
 use hal::gpio::{AnyPin, Level, Output, Pin};
 use hal::prelude::*;
 use hal::spi::Spi;
@@ -77,7 +77,7 @@ pub enum Instruction {
 }
 
 pub struct ST7735<const WIDTH: u16, const HEIGHT: u16, const OFFSETX: u16, const OFFSETY: u16> {
-    spi: Spi<'static, peripherals::SPI2, NoDma, NoDma>,
+    spi: Spi<'static, peripherals::SPI2, hal::mode::Blocking>,
     dc: Output<'static>,
     // _marker: core::marker::PhantomData<(OFFSETX, OFFSETY)>,
 }
@@ -85,7 +85,7 @@ pub struct ST7735<const WIDTH: u16, const HEIGHT: u16, const OFFSETX: u16, const
 impl<const WIDTH: u16, const HEIGHT: u16, const OFFSETX: u16, const OFFSETY: u16>
     ST7735<WIDTH, HEIGHT, OFFSETX, OFFSETY>
 {
-    pub fn new(spi: Spi<'static, peripherals::SPI2, NoDma, NoDma>, dc: Output<'static>) -> Self {
+    pub fn new(spi: Spi<'static, peripherals::SPI2, hal::mode::Blocking>, dc: Output<'static>) -> Self {
         Self {
             spi,
             dc,
@@ -263,7 +263,6 @@ async fn main(_spawner: Spawner) -> ! {
     println!("ok");
     let mut config = hal::Config::default();
     {
-        use hal::rcc::v3::{AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPreDiv, PllSource, Sysclk};
         use hal::rcc::*;
 
         config.rcc = Config {
@@ -293,8 +292,9 @@ async fn main(_spawner: Spawner) -> ! {
     let _miso = p.PB14;
     let mosi = p.PB15;
 
+    let dc = p.PA5;
     let rst = p.PC6;
-    let dc = p.PB7;
+    // let dc = p.PB7;
 
     // let led = p.PB8;
     let mut led = Output::new(p.PC9, Level::Low, Default::default());
@@ -308,7 +308,7 @@ async fn main(_spawner: Spawner) -> ! {
     let mut spi_config = hal::spi::Config::default();
     spi_config.frequency = Hertz::mhz(24);
 
-    let spi = Spi::new_txonly(p.SPI2, sck, mosi, NoDma, NoDma, spi_config);
+    let spi = Spi::new_blocking_txonly(p.SPI2, sck, mosi, spi_config);
 
     rst.set_low();
     Timer::after_millis(120).await;
