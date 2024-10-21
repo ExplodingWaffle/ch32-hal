@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
+#![feature(impl_trait_in_assoc_type)]
 
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
@@ -20,7 +21,7 @@ async fn blink(pin: AnyPin, interval_ms: u64) {
     }
 }
 
-#[embassy_executor::main(entry = "qingke_rt::entry")]
+#[embassy_executor::main(entry = "ch32_hal::entry")]
 async fn main(spawner: Spawner) -> ! {
     hal::debug::SDIPrint::enable();
     let mut config = hal::Config::default();

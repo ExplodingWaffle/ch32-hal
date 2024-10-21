@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
+#![feature(impl_trait_in_assoc_type)]
 
 use ch32_hal::usart;
 use embassy_executor::Spawner;
@@ -21,7 +22,7 @@ async fn blink(pin: AnyPin) {
     }
 }
 
-#[embassy_executor::main(entry = "qingke_rt::entry")]
+#[embassy_executor::main(entry = "ch32_hal::entry")]
 async fn main(spawner: Spawner) -> ! {
     let p = hal::init(Default::default());
     hal::embassy::init();

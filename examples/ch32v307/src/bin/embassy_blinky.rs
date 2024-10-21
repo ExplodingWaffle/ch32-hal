@@ -3,39 +3,33 @@
 #![feature(type_alias_impl_trait)]
 #![feature(impl_trait_in_assoc_type)]
 
-use ch32_hal::usart;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use hal::gpio::{AnyPin, Level, Output, Pin};
-use hal::usart::UartTx;
 use {ch32_hal as hal, panic_halt as _};
 
-#[embassy_executor::task]
-async fn blink(pin: AnyPin) {
+#[embassy_executor::task(pool_size = 3)]
+async fn blink(pin: AnyPin, interval_ms: u64) {
     let mut led = Output::new(pin, Level::Low, Default::default());
 
     loop {
         led.set_high();
-        Timer::after(Duration::from_millis(1000)).await;
+        Timer::after(Duration::from_millis(interval_ms)).await;
         led.set_low();
-        Timer::after(Duration::from_millis(1000)).await;
+        Timer::after(Duration::from_millis(interval_ms)).await;
     }
 }
 
-#[embassy_executor::main(entry = "qingke_rt::entry")]
+#[embassy_executor::main(entry = "ch32_hal::entry")]
 async fn main(spawner: Spawner) -> ! {
     let p = hal::init(Default::default());
     hal::embassy::init();
 
     // GPIO
-    spawner.spawn(blink(p.PC9.degrade())).unwrap();
-
-    let cfg = usart::Config::default();
-    let mut uart = UartTx::new_blocking(p.USART3, p.PB10, cfg).unwrap();
-
+    spawner.spawn(blink(p.PA15.degrade(), 1000)).unwrap();
+    spawner.spawn(blink(p.PB4.degrade(), 100)).unwrap();
+    // spawner.spawn(blink(p.PB8.degrade(), 100)).unwrap();
     loop {
         Timer::after_millis(2000).await;
-
-        uart.blocking_write(b"hello world from embassy main\r\n").unwrap();
     }
 }

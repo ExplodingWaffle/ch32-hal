@@ -338,7 +338,6 @@ pub(crate) unsafe fn init(config: Config) {
                         _ => panic!(),
                     }
                 }
-                _ => unreachable!(),
             }
 
             // Enable PLL

@@ -20,8 +20,7 @@ use embassy_sync::waitqueue::AtomicWaker;
 use futures::future::{select, Either};
 
 use crate::dma::ChannelAndRequest;
-use crate::gpio::{AFType, SealedPin};
-use crate::gpio::{AnyPin, Pull, Speed};
+use crate::gpio::{AFType, AnyPin, Pull, SealedPin, Speed};
 use crate::internal::drop::OnDrop;
 use crate::interrupt::typelevel::Interrupt;
 use crate::mode::{Async, Blocking, Mode};
@@ -402,6 +401,7 @@ impl<'d, T: Instance, M: Mode> UartRx<'d, T, M> {
     }
 
     /// Read a single u8 if there is one available, otherwise return WouldBlock
+    #[allow(unused)]
     pub(crate) fn nb_read(&mut self) -> Result<u8, nb::Error<Error>> {
         let r = T::regs();
         if self.check_rx_flags()? {
@@ -805,6 +805,7 @@ impl<'d, T: Instance, M: Mode> Uart<'d, T, M> {
     }
 
     /// Read a single `u8` or return `WouldBlock`
+    #[allow(unused)]
     pub(crate) fn nb_read(&mut self) -> Result<u8, nb::Error<Error>> {
         self.rx.nb_read()
     }

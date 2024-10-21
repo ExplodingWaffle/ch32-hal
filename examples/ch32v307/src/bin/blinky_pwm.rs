@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
+#![feature(impl_trait_in_assoc_type)]
 
 use embassy_executor::Spawner;
 use embassy_time::Timer;
@@ -10,7 +11,7 @@ use hal::timer::low_level::CountingMode;
 use hal::timer::simple_pwm::{PwmPin, SimplePwm};
 use {ch32_hal as hal, panic_halt as _};
 
-#[embassy_executor::main(entry = "qingke_rt::entry")]
+#[embassy_executor::main(entry = "ch32_hal::entry")]
 async fn main(_spawner: Spawner) -> ! {
     hal::debug::SDIPrint::enable();
     let mut config = hal::Config::default();
@@ -36,6 +37,8 @@ async fn main(_spawner: Spawner) -> ! {
     pwm.set_duty(ch, 7000);
     pwm.enable(ch);
 
+    println!("start");
+
     loop {
         for i in 0..100 {
             pwm.set_duty(ch, i * 80);
@@ -45,5 +48,7 @@ async fn main(_spawner: Spawner) -> ! {
             pwm.set_duty(ch, i * 80);
             Timer::after_millis(5).await;
         }
+
+        println!("loop");
     }
 }

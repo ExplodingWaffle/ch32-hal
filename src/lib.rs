@@ -3,6 +3,10 @@
 #![feature(naked_functions)]
 
 pub use ch32_metapac as pac;
+pub(crate) use embassy_hal_internal::{impl_peripheral, peripherals_definition, peripherals_struct};
+pub use embassy_hal_internal::{into_ref, Peripheral, PeripheralRef};
+#[cfg(feature = "rt")]
+pub use qingke_rt::{entry, interrupt};
 
 // This must go FIRST so that all the other modules see its macros.
 include!(concat!(env!("OUT_DIR"), "/_macros.rs"));
@@ -41,13 +45,14 @@ pub mod debug;
 pub mod prelude;
 
 mod peripheral;
-pub use peripheral::*;
+pub use peripheral::{RccPeripheral, RemapPeripheral};
+
 // #[cfg(not(ch32v0))]
 mod interrupt_ext;
 
 pub use crate::_generated::{peripherals, Peripherals};
 
-#[cfg(any(systick_rv2, systick_rv3))]
+#[cfg(not(time_driver_systick))]
 pub mod delay;
 pub mod dma;
 
@@ -114,8 +119,7 @@ pub fn init(config: Config) -> Peripherals {
     unsafe {
         rcc::init(config.rcc);
 
-        #[cfg(any(systick_rv2, systick_rv3))]
-        delay::Delay::init();
+        delay::init();
     }
 
     ::critical_section::with(|cs| unsafe {
@@ -135,8 +139,7 @@ macro_rules! bind_interrupts {
 
         $(
             #[allow(non_snake_case)]
-            #[no_mangle]
-            #[qingke_rt::interrupt]
+            #[$crate::interrupt]
             unsafe fn $irq() {
                 $(
                     <$handler as $crate::interrupt::typelevel::Handler<$crate::interrupt::typelevel::$irq>>::on_interrupt();
