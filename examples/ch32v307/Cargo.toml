@@ -18,8 +18,9 @@ embassy-executor = { version = "0.5.0", features = [
 ] }
 
 
-embassy-time = { version = "0.3.0" }
-embassy-usb = { version = "0.2.0" }
+embassy-time-driver = { version = "0.1.0", optional = true }
+embassy-time = { version = "0.3.2", optional = true }
+embassy-usb-driver = { version = "0.1.0", optional = true }
 embassy-futures = { version = "0.1.0" }
 nb = "1.1.0"
 
@@ -46,7 +47,7 @@ strip = false # symbols are not flashed to the microcontroller, so don't strip t
 opt-level = "s"
 debug = true    # Keep debug info.
 
-[patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy/" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy/" }
-embassy-time-driver = { git = "https://github.com/embassy-rs/embassy/" }
+# [patch.crates-io]
+# embassy-executor = { git = "https://github.com/embassy-rs/embassy/" }
+# embassy-time = { git = "https://github.com/embassy-rs/embassy/" }
+# embassy-time-driver = { git = "https://github.com/embassy-rs/embassy/" }

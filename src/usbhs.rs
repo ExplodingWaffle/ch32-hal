@@ -250,7 +250,7 @@ impl<'d, T: Instance> embassy_usb_driver::Driver<'d> for UsbHs<'d, T> {
         r.ctrl().write(|w| {
             w.set_dma_en(true);
             w.set_int_busy(true);
-            w.set_speed_type(0b00);
+            w.set_speed_type(0b01);
         });
 
         r.int_en().write(|w| {

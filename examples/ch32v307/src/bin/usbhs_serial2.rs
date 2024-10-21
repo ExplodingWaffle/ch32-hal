@@ -3,13 +3,17 @@
 #![feature(type_alias_impl_trait)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(naked_functions)]
+use core::any::Any;
 use core::arch::asm;
 
-use ch32_hal as hal;
+use ch32_hal::adc::{AdcPin, SampleTime};
+use ch32_hal::pac::adc;
+use ch32_hal::peripherals::ADC1;
+use ch32_hal::{self as hal, Peripheral};
 //use defmt::{panic, *};
 use embassy_executor::Spawner;
 use embassy_futures::join::join;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Instant, Ticker, Timer};
 use embassy_usb::class::cdc_acm::{CdcAcmClass, State};
 use embassy_usb::driver::EndpointError;
 use embassy_usb::Builder;
@@ -44,6 +48,19 @@ async fn main(spawner: Spawner) {
     // }
 
     spawner.spawn(blink(p.PA10.degrade(), 500)).unwrap();
+
+    spawner
+        .spawn(adc_cycle(
+            p.PE11.degrade(),
+            p.PE13.degrade(),
+            p.PE15.degrade(),
+            p.ADC1,
+            p.ADC2,
+            p.PA0,
+            p.PA1,
+            p.PA2,
+        ))
+        .unwrap();
 
     // Timer::after(Duration::from_millis(5000)).await;
 
@@ -197,14 +214,73 @@ async fn blink(pin: AnyPin, interval_ms: u64) {
     let mut led = Output::new(pin, Level::Low, Default::default());
     loop {
         led.toggle();
-        // unsafe {
-        //     let usb = hal::peripherals::USBHS::steal();
-        //     use ch32_hal::interrupt::typelevel::Interrupt;
-        //     <ch32_hal::peripherals::USBHS as ch32_hal::usbhs::Instance>::Interrupt::pend();
-        // };
-        // println!("LED toggled");
-        // usbdump();
         Timer::after(Duration::from_millis(interval_ms)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn adc_cycle(
+    pin1: AnyPin,
+    pin2: AnyPin,
+    pin3: AnyPin,
+    adc1: ADC1,
+    adc2: peripherals::ADC2,
+    mut adcpin1: peripherals::PA0,
+    mut adcpin2: peripherals::PA1,
+    mut adcpin3: peripherals::PA2,
+) {
+    let mut ticker = Ticker::every(Duration::from_micros(125000));
+
+    //gates are inverted!!
+    let mut pin1 = Output::new(pin1, Level::High, Default::default());
+    let mut pin2 = Output::new(pin2, Level::High, Default::default());
+    let mut pin3 = Output::new(pin3, Level::High, Default::default());
+
+    let mut adc = hal::adc::Adc::new(adc1, hal::adc::Config::default());
+    let mut samples = [0u16; 9];
+
+    const SAMPLETIME: SampleTime = SampleTime::CYCLES7_5;
+    const SETUP: Duration = Duration::from_micros(1);
+    const DEAD: Duration = Duration::from_micros(1);
+
+    loop {
+        let before = Instant::now();
+        pin1.set_low();
+        Timer::after(SETUP).await;
+        //take samples
+        samples[0] = adc.convert(&mut adcpin1, SAMPLETIME);
+        samples[1] = adc.convert(&mut adcpin2, SAMPLETIME);
+        samples[2] = adc.convert(&mut adcpin3, SAMPLETIME);
+        pin1.set_high();
+        Timer::after(DEAD).await;
+
+        pin2.set_low();
+        Timer::after(SETUP).await;
+        samples[3] = adc.convert(&mut adcpin1, SAMPLETIME);
+        samples[4] = adc.convert(&mut adcpin2, SAMPLETIME);
+        samples[5] = adc.convert(&mut adcpin3, SAMPLETIME);
+        pin2.set_high();
+        Timer::after(DEAD).await;
+
+        pin3.set_low();
+        Timer::after(SETUP).await;
+        samples[6] = adc.convert(&mut adcpin1, SAMPLETIME);
+        samples[7] = adc.convert(&mut adcpin2, SAMPLETIME);
+        samples[8] = adc.convert(&mut adcpin3, SAMPLETIME);
+        pin3.set_high();
+        Timer::after(DEAD).await;
+        let after = Instant::now();
+
+        #[allow(unused)]
+        let elapsed = after.duration_since(before);
+        // println!("elapsed: {:?}", elapsed.as_micros());
+
+        println!("samples:");
+        println!("adc: {:?} {:?} {:?}", samples[0], samples[1], samples[2]);
+        println!("adc: {:?} {:?} {:?}", samples[3], samples[4], samples[5]);
+        println!("adc: {:?} {:?} {:?}", samples[6], samples[7], samples[8]);
+
+        ticker.next().await;
     }
 }
 
