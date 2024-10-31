@@ -396,8 +396,8 @@ pub(crate) unsafe fn init(config: Config) {
     // 当 AHB 时钟来源的预分频系数大于 1 时，必须开启预取缓冲器
 
     FLASH.ctlr().modify(|w| {
-        w.set_sckmode(sys.0 <= 72_000_000);
-        w.set_enhancemode(true);
+        w.set_sckmode(sys.0 <= 60_000_000);
+        w.set_enhancemode(false);
     });
 
     RCC.cfgr0().modify(|w| {

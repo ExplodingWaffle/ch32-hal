@@ -60,6 +60,8 @@ pub mod adc;
 #[cfg(dac)]
 pub mod dac;
 pub mod exti;
+#[cfg(any(ch32v2, ch32v3, ch32f2))]
+pub mod flash;
 pub mod gpio;
 #[cfg(i2c)]
 pub mod i2c;
