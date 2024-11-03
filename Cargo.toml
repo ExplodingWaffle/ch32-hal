@@ -57,6 +57,10 @@ ch32-metapac = { features = [
 proc-macro2 = "1.0"
 quote = "1.0"
 
+[patch.crates-io]
+embedded-storage = { git = "https://github.com/ExplodingWaffle/embedded-storage" }
+embedded-storage-async = { git = "https://github.com/ExplodingWaffle/embedded-storage" }
+
 [features]
 default = ["embassy", "rt"]
 rt = ["dep:qingke-rt"]

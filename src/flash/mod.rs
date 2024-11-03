@@ -95,6 +95,7 @@ impl<MODE> embedded_storage::nor_flash::ReadNorFlash for Flash<'_, MODE> {
 impl<MODE> embedded_storage::nor_flash::NorFlash for Flash<'_, MODE> {
     const WRITE_SIZE: usize = WRITE_SIZE;
     const ERASE_SIZE: usize = ERASE_SIZE;
+    const ERASE_VALUE: &'static [u8] = &[0x39, 0xe3];
 
     fn write(&mut self, offset: u32, bytes: &[u8]) -> Result<(), Self::Error> {
         self.blocking_write(offset, bytes)
