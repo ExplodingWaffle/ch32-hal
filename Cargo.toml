@@ -65,10 +65,7 @@ embedded-storage-async = { git = "https://github.com/ExplodingWaffle/embedded-st
 default = ["embassy", "rt"]
 rt = ["dep:qingke-rt"]
 highcode = ["qingke-rt/highcode"]
-embassy = [
-    "dep:embassy-time-driver",
-    "dep:embassy-time",
-]
+embassy = ["dep:embassy-time-driver", "dep:embassy-time"]
 defmt = ["dep:defmt"]
 memory-x = ["ch32-metapac/memory-x"]
 

@@ -3,6 +3,7 @@ use core::ptr::{slice_from_raw_parts, write_volatile};
 use super::Error;
 use crate::pac::flash::regs::*;
 use crate::pac::FLASH;
+use crate::println;
 
 pub(crate) const FLASH_BASE: usize = 0x0800_0000;
 pub(crate) const FLASH_SIZE: usize = 480 * 1024;
@@ -60,7 +61,7 @@ pub(crate) unsafe fn blocking_write(offset: u32, bytes: &[u8]) -> Result<(), Err
 
     for chunk in bytes.chunks_exact(WRITE_SIZE) {
         let word: u16 = u16::from_ne_bytes(chunk.try_into().unwrap());
-        write_volatile(addr as *mut _, word);
+        write_volatile(addr as *mut u16, word);
 
         blocking_wait_ready()?;
 
@@ -69,7 +70,6 @@ pub(crate) unsafe fn blocking_write(offset: u32, bytes: &[u8]) -> Result<(), Err
 
     FLASH.ctlr().modify(|w| w.set_pg(false));
     lock();
-
     Ok(())
 }
 
@@ -84,9 +84,9 @@ pub(crate) unsafe fn blocking_erase(from: u32, to: u32) -> Result<(), Error> {
     unlock();
     FLASH.ctlr().modify(|w| w.set_per(true));
 
-    let mut addr = to;
+    let mut addr = FLASH_BASE as u32 + from;
 
-    while addr != to {
+    while addr < FLASH_BASE as u32 + to {
         FLASH.addr().write_value(Addr(addr));
         FLASH.ctlr().modify(|w| w.set_strt(true));
         blocking_wait_ready()?;

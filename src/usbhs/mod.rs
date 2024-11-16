@@ -319,7 +319,9 @@ impl<'d, T: Instance> embassy_usb_driver::Bus for Bus<'d, T> {
         critical_section::with(|_| T::regs().ctrl().modify(|v| v.set_dev_pu_en(true)));
     }
 
-    async fn disable(&mut self) {}
+    async fn disable(&mut self) {
+        critical_section::with(|_| T::regs().ctrl().modify(|v| v.set_dev_pu_en(false)));
+    }
 
     async fn poll(&mut self) -> Event {
         // TODO: VBUS detection
