@@ -36,14 +36,14 @@ use endpoint::{ControlPipe, Endpoint};
 
 use crate::gpio::{AFType, Speed};
 use crate::interrupt::typelevel::Interrupt;
-use crate::usb::{Dir, EndpointBufferAllocator, EndpointDataBuffer, In, Out};
+use crate::usb::{Dir, EndpointBufferAllocator, EndpointBuffers, In, Out};
 use crate::{interrupt, peripherals, Peripheral, RccPeripheral};
 
 pub mod endpoint;
 
 // TODO: We technically support 16, but we only allow 8 for now (0, 1-7).
 const MAX_NR_EP: usize = 8;
-const EP_MAX_PACKET_SIZE: u16 = 64;
+const EP0_MAX_PACKET_SIZE: u16 = 64;
 
 const NEW_AW: AtomicWaker = AtomicWaker::new();
 static BUS_WAKER: AtomicWaker = NEW_AW;
@@ -100,24 +100,24 @@ impl<T: Instance> interrupt::typelevel::Handler<T::Interrupt> for InterruptHandl
     }
 }
 
-pub struct Driver<'d, T: Instance, const NR_EP: usize> {
+pub struct Driver<'d, T: Instance> {
     phantom: PhantomData<&'d mut T>,
-    allocator: EndpointBufferAllocator<'d, NR_EP>,
+    allocator: EndpointBufferAllocator<'d>,
     next_ep_addr: u8,
 }
 
-impl<'d, T, const NR_EP: usize> Driver<'d, T, NR_EP>
+impl<'d, T> Driver<'d, T>
 where
     T: Instance,
 {
-    pub fn new(
+    pub fn new<const N: usize>(
         _usb: impl Peripheral<P = T> + 'd,
         // _irq: impl interrupt::typelevel::Binding<T::Interrupt, InterruptHandler<T>> + 'd,
         dp: impl Peripheral<P = impl crate::gpio::Pin> + 'd,
         dm: impl Peripheral<P = impl crate::gpio::Pin> + 'd,
-        ep_buffer: &'d mut [EndpointDataBuffer; NR_EP],
+        ep_buffer: &'d mut EndpointBuffers<N>,
     ) -> Self {
-        assert!(ep_buffer.len() > 0);
+        assert!(N > 0);
         let dp = dp.into_ref();
         let dm = dm.into_ref();
 
@@ -169,7 +169,7 @@ where
     }
 }
 
-impl<'d, T: Instance, const NR_EP: usize> embassy_usb_driver::Driver<'d> for Driver<'d, T, NR_EP> {
+impl<'d, T: Instance> embassy_usb_driver::Driver<'d> for Driver<'d, T> {
     type EndpointOut = Endpoint<'d, T, Out>;
 
     type EndpointIn = Endpoint<'d, T, In>;
@@ -197,7 +197,7 @@ impl<'d, T: Instance, const NR_EP: usize> embassy_usb_driver::Driver<'d> for Dri
     }
 
     fn start(mut self, control_max_packet_size: u16) -> (Self::Bus, Self::ControlPipe) {
-        assert!(control_max_packet_size <= EP_MAX_PACKET_SIZE);
+        assert!(control_max_packet_size <= EP0_MAX_PACKET_SIZE);
         let regs = T::regs();
 
         regs.uep_rx_ctrl(0).write(|v| v.set_mask_r_res(EpRxResponse::NAK));

@@ -43,7 +43,7 @@ impl<'d, T: Instance> embassy_usb_driver::ControlPipe for ControlPipe<'d, T> {
                 d.ep_tx_ctrl(0).write(|w| w.set_mask_uep_t_res(EpTxResponse::NAK));
 
                 let mut data: [u8; 8] = [0; 8];
-                self.ep0.data.buffer.read_volatile(&mut data[..]);
+                self.ep0.data.read_volatile(&mut data[..]);
                 r.int_fg().write(|w| {
                     w.set_setup_act(true);
                     w.set_transfer(true);
@@ -65,7 +65,7 @@ impl<'d, T: Instance> embassy_usb_driver::ControlPipe for ControlPipe<'d, T> {
     async fn data_out(&mut self, buf: &mut [u8], first: bool, _last: bool) -> Result<usize, EndpointError> {
         let d = T::dregs();
 
-        if buf.len() > self.ep0.data.max_packet_size as usize {
+        if buf.len() > self.ep0.data.len() {
             return Err(EndpointError::BufferOverflow);
         }
 

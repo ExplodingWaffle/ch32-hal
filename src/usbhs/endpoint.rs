@@ -21,10 +21,10 @@ impl<'d, T: Instance, D: Dir> Endpoint<'d, T, D> {
         if info.ep_type != EndpointType::Control {
             match info.addr.direction() {
                 Direction::Out => {
-                    T::dregs().ep_rx_dma(index - 1).write_value(data.buffer.addr() as u32);
+                    T::dregs().ep_rx_dma(index - 1).write_value(data.addr() as u32);
                 }
                 Direction::In => {
-                    T::dregs().ep_tx_dma(index - 1).write_value(data.buffer.addr() as u32);
+                    T::dregs().ep_tx_dma(index - 1).write_value(data.addr() as u32);
                 }
             }
         }
@@ -69,7 +69,7 @@ impl<'d, T: Instance, D: Dir> Endpoint<'d, T, D> {
                     UsbToken::OUT => {
                         let len = r.rx_len().read() as usize;
                         if len == buf.len() {
-                            self.data.buffer.read_volatile(&mut buf[..len]);
+                            self.data.read_volatile(&mut buf[..len]);
                             Poll::Ready(Ok(len))
                         } else {
                             Poll::Ready(Err(EndpointError::BufferOverflow))
@@ -104,11 +104,11 @@ impl<'d, T: Instance, D: Dir> Endpoint<'d, T, D> {
         let d = T::dregs();
         let index = self.info.addr.index();
 
-        if data.len() > self.data.max_packet_size as usize {
+        if data.len() > self.data.len() {
             return Err(EndpointError::BufferOverflow);
         }
 
-        self.data.buffer.write_volatile(data);
+        self.data.write_volatile(data);
 
         d.ep_t_len(index).write(|v| v.set_len(data.len() as u16));
         Ok(())
@@ -172,7 +172,7 @@ impl<'d, T: Instance> EndpointOut for Endpoint<'d, T, Out> {
         let d = T::dregs();
         let index = self.info.addr.index();
 
-        if buf.len() > self.data.max_packet_size as usize {
+        if buf.len() > self.data.len() {
             return Err(EndpointError::BufferOverflow);
         }
 

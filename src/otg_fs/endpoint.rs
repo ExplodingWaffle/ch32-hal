@@ -5,7 +5,7 @@ use ch32_metapac::otg::vals::{EpRxResponse, EpTxResponse, UsbToken};
 use embassy_usb_driver::{Direction, EndpointError, EndpointInfo};
 use futures::future::poll_fn;
 
-use super::{Instance, EP_MAX_PACKET_SIZE, EP_WAKERS};
+use super::{Instance, EP_WAKERS};
 use crate::interrupt::typelevel::Interrupt;
 use crate::usb::{Dir, EndpointData, In, Out};
 
@@ -20,7 +20,7 @@ impl<'d, T: Instance, D: Dir> Endpoint<'d, T, D> {
     pub(crate) fn new(info: EndpointInfo, data: EndpointData<'d>) -> Self {
         T::regs()
             .uep_dma(info.addr.index() as usize)
-            .write_value(data.buffer.addr() as u32);
+            .write_value(data.addr() as u32);
         Self {
             _phantom: PhantomData,
             info,
@@ -89,7 +89,7 @@ impl<'d, T: Instance> embassy_usb_driver::EndpointIn for Endpoint<'d, T, In> {
         let regs = T::regs();
 
         // Write buffer, txLen, and ACK
-        self.data.buffer.write_volatile(buf);
+        self.data.write_volatile(buf);
         regs.uep_t_len(ep).write_value(buf.len() as u8);
         regs.uep_tx_ctrl(ep).modify(|v| {
             v.set_t_tog(!v.t_tog());
@@ -163,7 +163,7 @@ impl<'d, T: Instance> embassy_usb_driver::EndpointOut for Endpoint<'d, T, Out> {
                             // upper bits are reserved (0)
                             let len = regs.rx_len().read().0 as usize;
 
-                            self.data.buffer.read_volatile(&mut buf[..len]);
+                            self.data.read_volatile(&mut buf[..len]);
                             Poll::Ready(Ok(len))
                         }
                         token => {
@@ -211,7 +211,7 @@ where
     T: Instance,
 {
     fn max_packet_size(&self) -> usize {
-        usize::from(EP_MAX_PACKET_SIZE)
+        self.ep0_buf.len()
     }
 
     async fn setup(&mut self) -> [u8; 8] {
@@ -232,7 +232,7 @@ where
                             regs.uep_rx_ctrl(0).write(|w| w.set_mask_r_res(EpRxResponse::NAK));
 
                             let mut data = [0u8; 8];
-                            self.ep0_buf.buffer.read_volatile(&mut data[..8]);
+                            self.ep0_buf.read_volatile(&mut data[..8]);
 
                             regs.int_fg().write(|v| v.set_transfer(true));
                             // Clear Flag
@@ -253,7 +253,7 @@ where
     async fn data_out(&mut self, buf: &mut [u8], first: bool, _last: bool) -> Result<usize, EndpointError> {
         let regs = T::regs();
 
-        if buf.len() > self.ep0_buf.max_packet_size as usize {
+        if buf.len() > self.ep0_buf.len() {
             return Err(EndpointError::BufferOverflow);
         }
 
@@ -279,7 +279,7 @@ where
                     let res = match status.mask_token() {
                         UsbToken::OUT => {
                             let len = regs.rx_len().read().0 as usize;
-                            self.ep0_buf.buffer.read_volatile(&mut buf[..len]);
+                            self.ep0_buf.read_volatile(&mut buf[..len]);
                             regs.uep_rx_ctrl(0).modify(|v| {
                                 v.set_mask_r_res(EpRxResponse::NAK);
                             });
@@ -307,11 +307,11 @@ where
     async fn data_in(&mut self, data: &[u8], first: bool, last: bool) -> Result<(), EndpointError> {
         let regs = T::regs();
 
-        if data.len() > self.ep0_buf.max_packet_size as usize {
+        if data.len() > self.ep0_buf.len() {
             return Err(EndpointError::BufferOverflow);
         }
 
-        self.ep0_buf.buffer.write_volatile(data);
+        self.ep0_buf.write_volatile(data);
         // TODO: manual is wrong here, t_len(3) should be a u16
         regs.uep_t_len(0).write_value(data.len() as u8);
 

@@ -1,67 +1,45 @@
 use embassy_usb_driver::EndpointAllocError;
 
-pub(crate) struct EndpointBufferAllocator<'d, const NR_EP: usize> {
-    ep_buffer: &'d mut [EndpointDataBuffer; NR_EP],
-    ep_next: usize,
+pub(crate) struct EndpointBufferAllocator<'d> {
+    // 4 aligned because we make it from EndpointDataBuffer, and make sure to
+    // only slice it by multiples of 4
+    buf: &'d mut [u8],
 }
 
-impl<'d, const NR_EP: usize> EndpointBufferAllocator<'d, NR_EP> {
-    pub fn new(ep_buffer: &'d mut [EndpointDataBuffer; NR_EP]) -> Self {
-        Self { ep_buffer, ep_next: 0 }
+impl<'d> EndpointBufferAllocator<'d> {
+    pub fn new<const N: usize>(ep_buffer: &'d mut EndpointBuffers<N>) -> Self {
+        Self {
+            buf: &mut ep_buffer.data,
+        }
     }
 
     pub fn alloc_endpoint(
         &mut self,
         max_packet_size: u16,
     ) -> Result<EndpointData<'d>, embassy_usb_driver::EndpointAllocError> {
-        if self.ep_next >= NR_EP {
-            error!("out of endpoint buffers");
+        let Some((mut ep, buf)) = self
+            .buf
+            .split_at_mut_checked((max_packet_size as usize).next_multiple_of(4))
+        else {
             return Err(EndpointAllocError);
-        }
+        };
 
-        let ep_buf_idx = self.ep_next;
-        self.ep_next += 1;
+        ep = &mut ep[..max_packet_size as usize];
 
-        // TODO: Fix this, and allow variable buffer sizes
-        assert!(max_packet_size as usize <= ENDPOINT_DATA_BUFFER_SIZE);
+        //extend lifetimes to 'd
+        let buf = unsafe { core::mem::transmute(buf) };
+        let ep = unsafe { core::mem::transmute(ep) };
+        self.buf = buf;
 
-        Ok(EndpointData {
-            max_packet_size,
-            buffer: unsafe { core::mem::transmute(&self.ep_buffer[ep_buf_idx] as *const EndpointDataBuffer) },
-        })
+        Ok(EndpointData { data: ep })
     }
 }
 
 pub struct EndpointData<'d> {
-    pub max_packet_size: u16,
-    pub buffer: &'d mut EndpointDataBuffer,
+    pub data: &'d mut [u8],
 }
 
 impl<'d> EndpointData<'d> {
-    pub fn addr(&self) -> usize {
-        self.buffer.addr()
-    }
-}
-
-// todo generic
-const ENDPOINT_DATA_BUFFER_SIZE: usize = 64;
-
-#[repr(C, align(4))]
-pub struct EndpointDataBuffer {
-    data: [u8; ENDPOINT_DATA_BUFFER_SIZE as usize],
-}
-
-impl Default for EndpointDataBuffer {
-    fn default() -> Self {
-        unsafe {
-            EndpointDataBuffer {
-                data: core::mem::zeroed(),
-            }
-        }
-    }
-}
-
-impl EndpointDataBuffer {
     pub(crate) fn read_volatile(&self, buf: &mut [u8]) {
         assert!(buf.len() <= self.data.len());
         let len = buf.len();
@@ -82,6 +60,21 @@ impl EndpointDataBuffer {
 
     pub(crate) fn addr(&self) -> usize {
         self.data.as_ptr() as usize
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.data.len()
+    }
+}
+
+#[repr(C, align(4))]
+pub struct EndpointBuffers<const N: usize> {
+    data: [u8; N],
+}
+
+impl<const N: usize> Default for EndpointBuffers<N> {
+    fn default() -> Self {
+        unsafe { core::mem::zeroed() }
     }
 }
 
