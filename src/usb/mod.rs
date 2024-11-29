@@ -72,6 +72,12 @@ pub struct EndpointBuffers<const N: usize> {
     data: [u8; N],
 }
 
+impl<const N: usize> EndpointBuffers<N> {
+    pub const fn new() -> Self {
+        unsafe { core::mem::zeroed() }
+    }
+}
+
 impl<const N: usize> Default for EndpointBuffers<N> {
     fn default() -> Self {
         unsafe { core::mem::zeroed() }
